@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Space Shooter - v1.7.1 Transparenz</title>
+    <title>Space Shooter - v1.8 Hardcore</title>
     <meta name="theme-color" content="#050510">
 
     <!-- ICONS -->
@@ -67,10 +67,10 @@
             transition: width 0.2s;
         }
         
-        /* Buttons - UPDATE: More Transparent */
+        /* Buttons */
         .icon-btn {
-            background: rgba(0, 0, 0, 0.15); /* War 0.5 */
-            border: 1px solid rgba(255, 255, 255, 0.15); /* War 0.3 */
+            background: rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.15);
             color: rgba(255, 255, 255, 0.8);
             padding: 0;
             border-radius: 50%;
@@ -92,7 +92,7 @@
             color: white;
         }
         
-        /* Screens (Start, Hangar, GameOver) */
+        /* Screens */
         .fullscreen-overlay {
             position: absolute;
             top: 0;
@@ -173,7 +173,7 @@
 
         #version-display { position: absolute; bottom: 10px; right: 10px; font-size: 12px; color: rgba(255,255,255,0.3); font-family: monospace; }
         
-        /* MOBILE CONTROLS - UPDATE: More Transparent */
+        /* MOBILE CONTROLS */
         #mobile-controls { 
             position: absolute; 
             bottom: 30px; 
@@ -187,23 +187,23 @@
             width: 70px; 
             height: 70px; 
             border-radius: 50%; 
-            background: rgba(0, 210, 255, 0.05); /* War 0.15 */
-            border: 2px solid rgba(0, 210, 255, 0.2); /* War 0.5 */
+            background: rgba(0, 210, 255, 0.05); 
+            border: 2px solid rgba(0, 210, 255, 0.2); 
             display: flex; 
             justify-content: center; 
             align-items: center; 
             flex-direction: column; 
-            color: rgba(255, 255, 255, 0.7); /* War white */
+            color: rgba(255, 255, 255, 0.7);
             font-weight: bold; 
-            backdrop-filter: blur(2px); /* Reduzierter Blur */
+            backdrop-filter: blur(2px); 
             font-size: 12px;
             pointer-events: auto;
             user-select: none;
             transition: all 0.2s;
         }
         .control-btn.active { 
-            background: rgba(0, 210, 255, 0.25); /* War 0.6 */
-            box-shadow: 0 0 15px rgba(0, 210, 255, 0.4); /* War 0.8 */
+            background: rgba(0, 210, 255, 0.25); 
+            box-shadow: 0 0 15px rgba(0, 210, 255, 0.4); 
             color: white;
             border-color: rgba(0, 210, 255, 0.6);
         }
@@ -257,7 +257,7 @@
         </div>
     </div>
 
-    <div id="version-display">v1.7.1</div>
+    <div id="version-display">v1.8.0</div>
     <div id="boss-warning">⚠️ BOSS WARNUNG ⚠️</div>
 
     <!-- HANGAR (Start Screen) -->
@@ -311,7 +311,7 @@
     <canvas id="gameCanvas"></canvas>
 
     <script>
-        const GAME_VERSION = '1.7.1';
+        const GAME_VERSION = '1.8.0';
         document.getElementById('version-display').innerText = `v${GAME_VERSION}`;
 
         // --- SHIP CONFIGURATIONS ---
@@ -328,6 +328,7 @@
         let gameState = 'MENU';
         let currentLevel = 1;
         let bossActive = false;
+        let boss = null; // Defined here as global to avoid issues
         let levelScoreThreshold = 5000;
         let gamePaused = false;
         let gyroActive = false;
@@ -407,7 +408,6 @@
         let bullets = [];
         let enemies = [];
         let ufos = [];
-        let boss = null;
         let enemyBullets = [];
         let particles = [];
         let powerups = [];
@@ -422,19 +422,38 @@
         function resize() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; }
         window.addEventListener('resize', resize); resize();
 
+        // --- THEMES ---
+        const LEVELS = {
+            1: { bgStart: '#050510', bgEnd: '#0b0b1a', star: '#ffffff', asteroid: '#777777' }, // Deep Space
+            2: { bgStart: '#000500', bgEnd: '#001a05', star: '#aaffaa', asteroid: '#55aaff' }, // Cyber/Ice
+            3: { bgStart: '#1a0500', bgEnd: '#2a0a00', star: '#ffccaa', asteroid: '#aa5500' }, // Solar/Magma
+            4: { bgStart: '#0f051a', bgEnd: '#1a052a', star: '#e0aaff', asteroid: '#aa00aa' }, // Void
+            5: { bgStart: '#1a1505', bgEnd: '#2a2005', star: '#ffffaa', asteroid: '#ffd700' }  // Elite
+        };
+
+        function getTheme() {
+            return LEVELS[Math.min(currentLevel, 5)] || LEVELS[1];
+        }
+
         // --- CLASSES ---
 
         class Nebula {
             constructor() {
                 this.x = Math.random() * width; this.y = Math.random() * height - height;
                 this.radius = Math.random() * 300 + 200;
-                this.color = Math.random() > 0.5 ? '100, 0, 200' : '0, 100, 200';
+                this.baseColor = Math.random() > 0.5 ? '100, 0, 200' : '0, 100, 200';
                 this.speed = Math.random() * 0.5 + 0.2; this.opacity = Math.random() * 0.1 + 0.05;
             }
             update() { this.y += this.speed; if(this.y-this.radius > height) { this.y = -this.radius; this.x = Math.random()*width; } }
             draw() {
+                // Adjust Nebula color based on level
+                let col = this.baseColor;
+                if (currentLevel === 2) col = '0, 200, 100';
+                if (currentLevel === 3) col = '200, 50, 0';
+                if (currentLevel === 4) col = '100, 0, 100';
+                
                 const g = ctx.createRadialGradient(this.x,this.y,0,this.x,this.y,this.radius);
-                g.addColorStop(0,`rgba(${this.color},${this.opacity})`); g.addColorStop(1,`rgba(${this.color},0)`);
+                g.addColorStop(0,`rgba(${col},${this.opacity})`); g.addColorStop(1,`rgba(${col},0)`);
                 ctx.fillStyle=g; ctx.beginPath(); ctx.arc(this.x,this.y,this.radius,0,Math.PI*2); ctx.fill();
             }
         }
@@ -442,21 +461,32 @@
         class Boss {
             constructor(level) {
                 this.x = width/2; this.y = -150; this.targetY = 100;
-                this.hp = 50 * level; this.maxHp = this.hp;
+                // INCREASED HP SCALING
+                this.hp = 100 * level + 50; 
+                this.maxHp = this.hp;
                 this.phase = 'entering'; this.moveDir = 1; this.level = level;
                 this.turrets = [{x:-60,y:20,cd:0}, {x:0,y:50,cd:0}, {x:60,y:20,cd:0}];
+                this.speed = 2 + (level * 0.2); // Faster with levels
             }
             update() {
                 if (this.phase === 'entering') { this.y += 1; if(this.y >= this.targetY) this.phase='fight'; }
                 else {
-                    this.x += 2 * this.moveDir;
+                    this.x += this.speed * this.moveDir;
                     if (this.x > width - 100 || this.x < 100) this.moveDir *= -1;
+                    
+                    // HARDER SHOOTING LOGIC
                     this.turrets.forEach(t => {
                         t.cd++;
-                        if (t.cd > 100 - (this.level * 5)) {
-                            t.cd = Math.random() * -50;
+                        // Shoot faster at higher levels
+                        const fireRate = Math.max(30, 90 - (this.level * 10));
+                        
+                        if (t.cd > fireRate) {
+                            t.cd = Math.random() * -20;
+                            // Standard shot
                             enemyBullets.push(new EnemyBullet(this.x+t.x, this.y+t.y, Math.PI/2));
-                            if (this.level >= 2 && Math.random() > 0.5) {
+                            
+                            // Aggressive aiming at higher levels
+                            if (this.level >= 3 && Math.random() > 0.4) {
                                 let a = Math.atan2(player.y-(this.y+t.y), player.x-(this.x+t.x));
                                 enemyBullets.push(new EnemyBullet(this.x+t.x, this.y+t.y, a));
                             }
@@ -470,6 +500,7 @@
                 ctx.fillStyle = '#440000'; ctx.beginPath(); ctx.moveTo(-100,-20); ctx.lineTo(100,-20); ctx.lineTo(80,50); ctx.lineTo(0,80); ctx.lineTo(-80,50); ctx.fill();
                 ctx.fillStyle = `rgb(${150+Math.sin(frames*0.1)*50},0,0)`; ctx.fillRect(-90,0,180,10);
                 ctx.fillStyle = '#888'; this.turrets.forEach(t => { ctx.beginPath(); ctx.arc(t.x,t.y,10,0,Math.PI*2); ctx.fill(); });
+                // HP Bar
                 ctx.fillStyle = 'rgba(255,0,0,0.5)'; ctx.fillRect(-100,-50,200,10);
                 ctx.fillStyle = '#00ff00'; ctx.fillRect(-100,-50,200*(this.hp/this.maxHp),10);
                 ctx.restore();
@@ -508,7 +539,11 @@
             constructor(level) {
                 this.radius = Math.random()*20+20; this.x=Math.random()*width; this.y=-50;
                 this.speedY = Math.random()*2+1+(level*0.5); this.speedX = (Math.random()-0.5)*(level*0.5);
-                if(level===1) this.c='#777'; else if(level===2) this.c='#5af'; else if(level===3) this.c='#a50'; else this.c='#a0a';
+                
+                // Color based on Theme
+                const theme = getTheme();
+                this.c = theme.asteroid;
+
                 this.hp = Math.floor(this.radius/8)+(level-1); this.marked=false;
                 this.angle=0; this.rot=(Math.random()-0.5)*0.1;
                 this.pts=[]; const s=7; for(let i=0;i<s;i++){ let a=(i/s)*Math.PI*2; let r=this.radius*(0.8+Math.random()*0.4); this.pts.push({x:Math.cos(a)*r,y:Math.sin(a)*r}); }
@@ -611,25 +646,15 @@
 
             // Gyro Handling
             if(gyroActive) {
-                // gamma is left/right (-90 to 90), beta is front/back (-180 to 180)
-                // We use gamma to steer X velocity
-                // We use beta to steer Y velocity (assuming phone held somewhat upright)
                 const gX = gyroData.x; // Gamma
                 const gY = gyroData.y; // Beta
-
-                // Deadzone
                 if(Math.abs(gX) > 5) player.targetX += gX * 0.8 * player.speedMult;
-                if(Math.abs(gY - 45) > 5) player.targetY += (gY - 45) * 0.8 * player.speedMult; // Assume 45deg holding angle
+                if(Math.abs(gY - 45) > 5) player.targetY += (gY - 45) * 0.8 * player.speedMult; 
             }
 
             // Movement
             if(keys.w) player.targetY-=10; if(keys.s) player.targetY+=10; if(keys.a) player.targetX-=10; if(keys.d) player.targetX+=10;
-            
-            // Mouse/Touch logic: only override if not using keys and not using gyro (or if touching screen)
-            // If isMobile and touching, touch takes priority
-            if(!isMobile && !keys.w && !keys.s && !keys.a && !keys.d) { 
-                player.targetX=mouse.x; player.targetY=mouse.y; 
-            }
+            if(!isMobile && !keys.w && !keys.s && !keys.a && !keys.d) { player.targetX=mouse.x; player.targetY=mouse.y; }
             
             player.targetX = Math.max(20, Math.min(width-20, player.targetX));
             player.targetY = Math.max(20, Math.min(height-20, player.targetY));
@@ -653,25 +678,16 @@
 
             if(bossActive && boss) {
                 boss.update();
-                // Fix: use traditional for loop to allow breaking when boss dies
                 for (let i = 0; i < bullets.length; i++) {
-                    if (!boss) break; // Safety check
+                    if (!boss) break;
                     let b = bullets[i];
                     if(b.x > boss.x-80 && b.x < boss.x+80 && b.y > boss.y-20 && b.y < boss.y+80) {
-                        boss.hp--; 
-                        b.y=-100; 
-                        createExplosion(b.x,b.y,'#fa0');
+                        boss.hp--; b.y=-100; createExplosion(b.x,b.y,'#fa0');
                         if(boss.hp<=0) {
-                            SoundSystem.bossExplode(); 
-                            createExplosion(boss.x,boss.y,'#fff');
+                            SoundSystem.bossExplode(); createExplosion(boss.x,boss.y,'#fff');
                             for(let j=0;j<10;j++) createExplosion(boss.x+(Math.random()-0.5)*100,boss.y+(Math.random()-0.5)*100,'#f00');
-                            boss=null; 
-                            bossActive=false; 
-                            score+=2000; 
-                            currentLevel++; 
-                            levelScoreThreshold+=5000;
-                            player.hp=player.maxHp; 
-                            document.getElementById('level-display').innerText="LEVEL "+currentLevel;
+                            boss=null; bossActive=false; score+=2000; currentLevel++; levelScoreThreshold+=5000;
+                            player.hp=player.maxHp; document.getElementById('level-display').innerText="LEVEL "+currentLevel;
                         }
                     }
                 }
@@ -751,12 +767,16 @@
 
         function draw() {
             // Bg
-            let hue = 240 + (currentLevel*30);
-            const g=ctx.createLinearGradient(0,0,0,height); g.addColorStop(0,`hsl(${hue},60%,5%)`); g.addColorStop(1,`hsl(${hue},60%,15%)`);
+            const theme = getTheme();
+            const g=ctx.createLinearGradient(0,0,0,height); 
+            g.addColorStop(0, theme.bgStart); 
+            g.addColorStop(1, theme.bgEnd);
             ctx.fillStyle=g; ctx.fillRect(0,0,width,height);
 
             nebulas.forEach(n=>n.draw());
-            ctx.fillStyle='white'; stars.forEach(s=>{s.y+=s.speed; if(s.y>height)s.y=0; ctx.beginPath();ctx.arc(s.x,s.y,s.size,0,Math.PI*2);ctx.fill();});
+            
+            ctx.fillStyle = theme.star; 
+            stars.forEach(s=>{s.y+=s.speed; if(s.y>height)s.y=0; ctx.beginPath();ctx.arc(s.x,s.y,s.size,0,Math.PI*2);ctx.fill();});
 
             drawPlayer();
             ctx.save(); ctx.globalCompositeOperation='lighter'; particles.forEach(p=>p.draw()); ctx.restore();
